@@ -33,6 +33,7 @@
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/TargetParser/TargetParser.h"
 #include <system_error>
+#include <iostream>
 
 using namespace clang::driver;
 using namespace clang::driver::toolchains;
@@ -1739,8 +1740,8 @@ static void findRISCVBareMetalMultilibs(const Driver &D,
   constexpr RiscvMultilib RISCVMultilibSet[] = {
       {"rv32i", "ilp32"},   {"rv32ic", "ilp32"}, {"rv32im", "ilp32"},
       {"rv32iac", "ilp32"}, {"rv32imc", "ilp32"},
-      {"rv32imac", "ilp32"},  {"rv32imafc", "ilp32f"}, {"rv32imafdc", "ilp32d"},
-      {"rv64imac", "lp64"},   {"rv64imafc", "lp64f"},  {"rv64imafdc", "lp64d"},
+      {"rv32imac", "ilp32"},  {"rv32imafc", "ilp32f"}, {"rv32imafdc", "ilp32d"}, {"rv32imafdcv", "ilp32d"},
+      {"rv64imac", "lp64"},   {"rv64imafc", "lp64f"},  {"rv64imafdc", "lp64d"}, {"rv64imafdcv", "lp64d"},
       {"rv32imac_zba_zbb_zbc_zbs", "ilp32"},  {"rv32imafc_zba_zbb_zbc_zbs", "ilp32f"}, {"rv32imafdc_zba_zbb_zbc_zbs", "ilp32d"},
       {"rv32imac_zk_zks", "ilp32"},  {"rv32imafc_zk_zks", "ilp32f"}, {"rv32imafdc_zk_zks", "ilp32d"},
       {"rv32imac_zve32x", "ilp32"},  {"rv32imafc_zve32f", "ilp32f"}, {"rv32imafdc_zve32f", "ilp32d"},
@@ -1764,6 +1765,27 @@ static void findRISCVBareMetalMultilibs(const Driver &D,
             (Twine(Element.march) + "/" + Twine(Element.mabi)).str())
             .flag(Twine("-march=", Element.march).str())
             .flag(Twine("-mabi=", Element.mabi).str()));
+    bool replace_v = false;
+    std::string newmarch;
+
+    if (Element.march.contains("v_")) {
+      llvm::SmallVector<llvm::StringRef, 2> SplittedParts;
+      Element.march.split(SplittedParts, "v_", 2);
+
+      replace_v = true;
+      newmarch = llvm::join(SplittedParts, "_");
+    } else if (Element.march.endswith("v")) {
+      newmarch = Element.march.rtrim("v").str();
+      replace_v = true;
+    }
+    if (replace_v) {
+      // llvm::outs() << "Add extra multilib: " << newmarch << "\n";
+      Ms.emplace_back(
+        MultilibBuilder(
+            (Twine(newmarch) + "/" + Twine(Element.mabi)).str())
+            .flag(Twine("-march=", Element.march).str())
+            .flag(Twine("-mabi=", Element.mabi).str()));
+    }
   }
   MultilibSet RISCVMultilibs =
       MultilibSetBuilder()
@@ -1776,6 +1798,8 @@ static void findRISCVBareMetalMultilibs(const Driver &D,
                  "/../../../../riscv64-unknown-elf/lib" + M.gccSuffix(),
                  "/../../../../riscv32-unknown-elf/lib" + M.gccSuffix()});
           });
+
+  // std::cout << "hello" << std::endl;
 
   Multilib::flags_list Flags;
   llvm::StringSet<> Added_ABIs;
@@ -1790,9 +1814,27 @@ static void findRISCVBareMetalMultilibs(const Driver &D,
                       Twine("-mabi=", Element.mabi).str().c_str(), Flags);
     }
   }
-
-  if (RISCVMultilibs.select(Flags, Result.SelectedMultilibs))
+  // llvm::outs() << "RISCVMultilibs" << "\n";
+  // for (const auto &Multilib : RISCVMultilibs) {
+  //   llvm::outs() << "  - " << Multilib << "\n";
+  // }
+  // llvm::outs() << "SelectedMultilibs" << "\n";
+  // for (const auto &Multilib : Result.SelectedMultilibs) {
+  //   llvm::outs() << "  - " << Multilib << "\n";
+  // }
+  // llvm::outs() << "Result.Multilibs" << "\n";
+  // for (const auto &Multilib : Result.Multilibs) {
+  //   llvm::outs() << "  - " << Multilib << "\n";
+  // }
+  // llvm::outs() << "Flags" << "\n";
+  // for (const auto &F : Flags) {
+  //   llvm::outs() << "  - " << F << "\n";
+  // }
+  if (RISCVMultilibs.select(Flags, Result.SelectedMultilibs)) {
+    // llvm::outs() << "Found multilib" << "\n";
     Result.Multilibs = RISCVMultilibs;
+  }
+
 }
 
 static void findRISCVMultilibs(const Driver &D,
