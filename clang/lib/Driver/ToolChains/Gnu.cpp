@@ -1763,15 +1763,21 @@ static void findRISCVBareMetalMultilibs(const Driver &D,
     };
 
   std::vector<MultilibBuilder> Ms;
+  StringRef ABIName = tools::riscv::getRISCVABI(Args, TargetTriple);
+  StringRef MArch = tools::riscv::getRISCVArch(Args, TargetTriple);
+  bool march_added = false;
+  std::string addmarch = "";
+
   for (auto Element : RISCVMultilibSet) {
+    bool replace_v = false;
+    std::string newmarch = Twine(Element.mabi).str();
+
     // multilib path rule is ${march}/${mabi}
     Ms.emplace_back(
         MultilibBuilder(
             (Twine(Element.march) + "/" + Twine(Element.mabi)).str())
             .flag(Twine("-march=", Element.march).str())
             .flag(Twine("-mabi=", Element.mabi).str()));
-    bool replace_v = false;
-    std::string newmarch;
 
     if (Element.march.contains("v_")) {
       llvm::SmallVector<llvm::StringRef, 2> SplittedParts;
@@ -1782,6 +1788,8 @@ static void findRISCVBareMetalMultilibs(const Driver &D,
     } else if (Element.march.endswith("v")) {
       newmarch = Element.march.rtrim("v").str();
       replace_v = true;
+    } else {
+      newmarch = Twine(Element.mabi).str();
     }
     if (replace_v) {
       // llvm::outs() << "Add extra multilib: " << newmarch << "\n";
@@ -1791,6 +1799,25 @@ static void findRISCVBareMetalMultilibs(const Driver &D,
             .flag(Twine("-march=", Element.march).str())
             .flag(Twine("-mabi=", Element.mabi).str()));
     }
+    if (NonExistent(MultilibBuilder((Twine(newmarch) + "/" + Twine(Element.mabi)).str()).makeMultilib()) == false) {
+      if (newmarch == MArch) {
+        march_added = true;
+      } else {
+        if (MArch.starts_with(newmarch) && ABIName == Element.mabi) {
+            if (addmarch.length() <= Twine(newmarch).str().length()) {
+              addmarch = Twine(newmarch).str();
+            }
+        }
+      }
+    }
+  }
+  if (march_added == false && addmarch.length() > 0) {
+    // llvm::outs() << "Add extra march: " << addmarch << " for " << MArch << "\n";
+    Ms.emplace_back(
+        MultilibBuilder(
+            (Twine(addmarch) + "/" + Twine(ABIName)).str())
+            .flag(Twine("-march=", MArch).str())
+            .flag(Twine("-mabi=", ABIName).str()));
   }
   MultilibSet RISCVMultilibs =
       MultilibSetBuilder()
@@ -1808,11 +1835,17 @@ static void findRISCVBareMetalMultilibs(const Driver &D,
 
   Multilib::flags_list Flags;
   llvm::StringSet<> Added_ABIs;
-  StringRef ABIName = tools::riscv::getRISCVABI(Args, TargetTriple);
-  StringRef MArch = tools::riscv::getRISCVArch(Args, TargetTriple);
+
+  // llvm::outs() << " ARCH ABI - " << MArch << "/" << ABIName  << "\n";
+
+  if (march_added == false && addmarch.length() > 0) {
+    addMultilibFlag(true,
+                    Twine("-march=", MArch).str().c_str(), Flags);
+  }
   for (auto Element : RISCVMultilibSet) {
     addMultilibFlag(MArch == Element.march,
                     Twine("-march=", Element.march).str().c_str(), Flags);
+
     if (!Added_ABIs.count(Element.mabi)) {
       Added_ABIs.insert(Element.mabi);
       addMultilibFlag(ABIName == Element.mabi,
@@ -2781,6 +2814,12 @@ bool Generic_GCC::GCCInstallationDetector::ScanGCCForMultilibs(
                          ? Multilib()
                          : Detected.SelectedMultilibs.back();
   BiarchSibling = Detected.BiarchSibling;
+
+  // llvm::outs() << " select multilib  - " << SelectedMultilib << "\n";
+  // llvm::outs() << "Result.Multilibs" << "\n";
+  // for (const auto &Multilib : Result.Multilibs) {
+  //   llvm::outs() << "  - " << Multilib << "\n";
+  // }
 
   return true;
 }
