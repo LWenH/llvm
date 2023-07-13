@@ -1770,7 +1770,7 @@ static void findRISCVBareMetalMultilibs(const Driver &D,
 
   for (auto Element : RISCVMultilibSet) {
     bool replace_v = false;
-    std::string newmarch = Twine(Element.mabi).str();
+    std::string newmarch = Twine(Element.march).str();
 
     // multilib path rule is ${march}/${mabi}
     Ms.emplace_back(
@@ -1789,7 +1789,7 @@ static void findRISCVBareMetalMultilibs(const Driver &D,
       newmarch = Element.march.rtrim("v").str();
       replace_v = true;
     } else {
-      newmarch = Twine(Element.mabi).str();
+      newmarch = Twine(Element.march).str();
     }
     if (replace_v) {
       // llvm::outs() << "Add extra multilib: " << newmarch << "\n";
@@ -1799,11 +1799,16 @@ static void findRISCVBareMetalMultilibs(const Driver &D,
             .flag(Twine("-march=", Element.march).str())
             .flag(Twine("-mabi=", Element.mabi).str()));
     }
+    // check whether the selected multilib march removed v's library directory exist,
+    // it must exist, then we can add a new multilib
     if (NonExistent(MultilibBuilder((Twine(newmarch) + "/" + Twine(Element.mabi)).str()).makeMultilib()) == false) {
-      if (newmarch == MArch) {
+      // If selected multilib march matched with passed March, mark it as added, no need to add it again
+      if (Element.march == MArch) {
         march_added = true;
       } else {
-        if (MArch.starts_with(newmarch) && ABIName == Element.mabi) {
+        // If passed March start with selected multilib march and abi matches, then record the added march
+        // the added march need to use the newmarch, since this version removed v extension
+        if (MArch.starts_with(Element.march) && ABIName == Element.mabi) {
             if (addmarch.length() <= Twine(newmarch).str().length()) {
               addmarch = Twine(newmarch).str();
             }
