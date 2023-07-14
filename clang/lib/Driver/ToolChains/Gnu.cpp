@@ -26,6 +26,7 @@
 #include "clang/Driver/Tool.h"
 #include "clang/Driver/ToolChain.h"
 #include "llvm/ADT/StringSet.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Support/CodeGen.h"
