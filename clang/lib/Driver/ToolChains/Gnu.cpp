@@ -1748,19 +1748,19 @@ static void findRISCVBareMetalMultilibs(const Driver &D,
       {"rv32imac_zve32x", "ilp32"}, {"rv32imafc_zve32f", "ilp32f"}, {"rv32imafdc_zve32f", "ilp32d"},
       {"rv32imac_zba_zbb_zbc_zbs_zve32x", "ilp32"}, {"rv32imafc_zba_zbb_zbc_zbs_zve32f", "ilp32f"},
       {"rv32imafdc_zba_zbb_zbc_zbs_zve32f", "ilp32d"},{"rv32imafdcv_zba_zbb_zbc_zbs", "ilp32d"},
-      {"rv32imac_zba_zbb_zbc_zbs_zk_zks_zbkb_zbkc_zbkx", "ilp32"},  {"rv32imafc_zba_zbb_zbc_zbs_zk_zks_zbkb_zbkc_zbkx", "ilp32f"},
-      {"rv32imafdc_zba_zbb_zbc_zbs_zk_zks_zbkb_zbkc_zbkx", "ilp32d"},
+      {"rv32imac_zba_zbb_zbc_zbs_zk_zks", "ilp32"},  {"rv32imafc_zba_zbb_zbc_zbs_zk_zks", "ilp32f"},
+      {"rv32imafdc_zba_zbb_zbc_zbs_zk_zks", "ilp32d"},
       {"rv32imac_zk_zks_zve32x", "ilp32"}, {"rv32imafc_zk_zks_zve32f", "ilp32f"}, {"rv32imafdc_zk_zks_zve32f", "ilp32d"},
-      {"rv32imac_zba_zbb_zbc_zbs_zk_zks_zbkb_zbkc_zbkx_zve32x", "ilp32"}, {"rv32imafc_zba_zbb_zbc_zbs_zk_zks_zbkb_zbkc_zbkx_zve32f", "ilp32f"},
-      {"rv32imafdc_zba_zbb_zbc_zbs_zk_zks_zbkb_zbkc_zbkx_zve32f", "ilp32d"}, {"rv32imafdcv_zba_zbb_zbc_zbs_zk_zks_zbkb_zbkc_zbkx", "ilp32d"},
+      {"rv32imac_zba_zbb_zbc_zbs_zk_zks_zve32x", "ilp32"}, {"rv32imafc_zba_zbb_zbc_zbs_zk_zks_zve32f", "ilp32f"},
+      {"rv32imafdc_zba_zbb_zbc_zbs_zk_zks_zve32f", "ilp32d"}, {"rv32imafdcv_zba_zbb_zbc_zbs_zk_zks", "ilp32d"},
       {"rv64imac_zba_zbb_zbc_zbs", "lp64"}, {"rv64imafc_zba_zbb_zbc_zbs", "lp64f"}, {"rv64imafdc_zba_zbb_zbc_zbs", "lp64d"},
       {"rv64imac_zk_zks", "lp64"}, {"rv64imafc_zk_zks", "lp64f"}, {"rv64imafdc_zk_zks", "lp64d"},
-      {"rv64imac_zba_zbb_zbc_zbs_zk_zks_zbkb_zbkc_zbkx", "lp64"}, {"rv64imafc_zba_zbb_zbc_zbs_zk_zks_zbkb_zbkc_zbkx", "lp64f"},
-      {"rv64imafdc_zba_zbb_zbc_zbs_zk_zks_zbkb_zbkc_zbkx", "lp64d"},
+      {"rv64imac_zba_zbb_zbc_zbs_zk_zks", "lp64"}, {"rv64imafc_zba_zbb_zbc_zbs_zk_zks", "lp64f"},
+      {"rv64imafdc_zba_zbb_zbc_zbs_zk_zks", "lp64d"},
       {"rv64imac_zba_zbb_zbc_zbs_zve64x", "lp64"}, {"rv64imafc_zba_zbb_zbc_zbs_zve64f", "lp64f"}, {"rv64imafdcv_zba_zbb_zbc_zbs", "lp64d"},
       {"rv64imac_zk_zks_zve64x", "lp64"}, {"rv64imafc_zk_zks_zve64f", "lp64f"}, {"rv64imafdcv_zk_zks", "lp64d"},
-      {"rv64imac_zba_zbb_zbc_zbs_zk_zks_zbkb_zbkc_zbkx_zve64x", "lp64"}, {"rv64imafc_zba_zbb_zbc_zbs_zk_zks_zbkb_zbkc_zbkx_zve64f", "lp64f"},
-      {"rv64imafdcv_zba_zbb_zbc_zbs_zk_zks_zbkb_zbkc_zbkx", "lp64d"}
+      {"rv64imac_zba_zbb_zbc_zbs_zk_zks_zve64x", "lp64"}, {"rv64imafc_zba_zbb_zbc_zbs_zk_zks_zve64f", "lp64f"},
+      {"rv64imafdcv_zba_zbb_zbc_zbs_zk_zks", "lp64d"}
     };
 
   std::vector<MultilibBuilder> Ms;
