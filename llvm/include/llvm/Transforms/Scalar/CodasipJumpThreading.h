@@ -21,6 +21,22 @@
 #include "llvm/Analysis/BlockFrequencyInfo.h"
 #include "llvm/Analysis/BranchProbabilityInfo.h"
 #include "llvm/IR/ValueHandle.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/IR/JTBuilder.h"
+#include "llvm/IR/JTGraph.h"
+#include "llvm/IR/JTThreadableNode.h"
+#include "llvm/Transforms/Scalar/JTAnalyzer.h"
+#include "llvm/Transforms/Scalar/JTDebug.h"
+#include "llvm/Transforms/Scalar/JTPhiRebuilder.h"
+#include "llvm/IR/JTFwd.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Cloning.h"
+#include "llvm/Transforms/Utils/Local.h"
+#include "llvm/Transforms/Utils/SSAUpdater.h"
+#include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
+#include "llvm/Transforms/Utils/ValueMapper.h"
+
+
 
 namespace llvm {
 
@@ -53,12 +69,50 @@ class Value;
 ///
 /// In this case, the unconditional branch at the end of the first if can be
 /// revectored to the false side of the second if.
-class CodasipJumpThreadingPass : public PassInfoMixin<CodasipJumpThreadingPass> {
-  TargetLibraryInfo *TLI;
-  LazyValueInfo *LVI;
 
+namespace jumpthreading {
+  class CodasipJumpThreading {
+  public:
+    // static char ID; // Pass identification
+
+    CodasipJumpThreading(int T = -1){}
+
+    bool runPass(Function &F, const LoopInfo &LI, const TargetLibraryInfo &TLI);
+
+    // void getAnalysisUsage(AnalysisUsage &AU) const override {
+    //   //AU.addRequired<LazyValueInfoWrapperPass>();
+    //   AU.addRequired<LoopInfoWrapperPass>();
+    //   AU.addRequired<TargetLibraryInfoWrapperPass>();
+    // }
+
+  private:
+    void createJTGraph(JTGraph &G, Function &F, JTBuilder &Builder);
+    // Merging functions
+    bool mergeThreadableGraphs(JTAnalyzer::ThreadableGraphs &Graphs, const unsigned int Iteration);
+    static bool merge(JTGraph &Dst, JTGraph &Src);
+    static void mergeSameEntryEdgeGraphs(JTAnalyzer::ThreadableGraphs &Graphs);
+    static bool mergeSameEntryEdgeGraphs(JTGraph &Dst, JTGraph &Src);
+    // Attaching functions
+    void attachGraphs(JTGraph &Dst, JTAnalyzer::ThreadableGraphs &Src, bool &Changed);
+    //static bool hasIntersection(ThreadableGraphs &Src);
+    void attachGraph(JTGraph &Dst, JTGraph &Src, bool &Changed);
+    // LLVM final processing functions
+    static void cloneBlocks(JTGraph::JTBlocks &Blocks, JTGraph &G, JTBuilder &Builder);
+    void fixTerminators(JTGraph::JTBlocks &Blocks, Function &F);
+    void fixConditionalBranch(Instruction *Terminator, JTBlock &Block);
+    void fixSwitch(Instruction *Terminator, JTBlock &Block);
+    void placeDuplicatedBlocksIntoFunction(Function &F, JTGraph::JTBlocks &Blocks);
+
+    // Utility functions
+    void createDuplicateMap(ValueToValueMapTy &Duplicate2Original, JTBlock &Duplicate);
+  };
+}
+
+class CodasipJumpThreadingPass : public PassInfoMixin<CodasipJumpThreadingPass> {
+  jumpthreading::CodasipJumpThreading pass;
 public:
-  CodasipJumpThreadingPass();
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+
 };
 
 } // end namespace llvm

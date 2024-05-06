@@ -22,7 +22,7 @@ JTThreadableNode::~JTThreadableNode()
 void JTThreadableNode::printDot(const std::string &Path) const
 {
   std::error_code EC;
-  raw_fd_ostream Out(Path, EC, sys::fs::OpenFlags::F_None);
+  raw_fd_ostream Out(Path, EC, sys::fs::OpenFlags::OF_None);
   assert(!EC);
   Out << "digraph G {\n";
 

@@ -340,7 +340,7 @@ void initializeWasmEHPreparePass(PassRegistry&);
 void initializeWinEHPreparePass(PassRegistry&);
 void initializeWriteBitcodePassPass(PassRegistry&);
 void initializeXRayInstrumentationPass(PassRegistry&);
-void initializeCodasipJumpThreadingPass(PassRegistry&);
+// void initializeCodasipJumpThreadingPass(PassRegistry&);
 
 } // end namespace llvm
 

@@ -20,6 +20,7 @@
 #include "llvm/Transforms/Scalar/JTDebug.h"
 #include "llvm/Transforms/Utils/Local.h"
 
+#define DEBUG_TYPE "codasip-jump-threading"
 // FIXME do not work
 STATISTIC(NumFolds,   "Number of terminators folded");
 

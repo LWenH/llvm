@@ -16,7 +16,6 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
@@ -48,9 +47,6 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/JTBuilder.h"
-#include "llvm/IR/JTGraph.h"
-#include "llvm/IR/JTThreadableNode.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Metadata.h"
@@ -70,26 +66,18 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/CodasipJumpThreading.h"
-#include "llvm/Transforms/Scalar/JTAnalyzer.h"
-#include "llvm/Transforms/Scalar/JTDebug.h"
-#include "llvm/Transforms/Scalar/JTPhiRebuilder.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/Transforms/Utils/Cloning.h"
-#include "llvm/Transforms/Utils/Local.h"
-#include "llvm/Transforms/Utils/SSAUpdater.h"
-#include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
-#include "llvm/Transforms/Utils/ValueMapper.h"
+
 
 using namespace llvm;
 using namespace jumpthreading;
 
+#define DEBUG_TYPE "codasip-jump-threading"
 STATISTIC(NumThreads, "Number of jumps threaded");
 STATISTIC(NumDupes,   "Number of branch blocks duplicated to eliminate phi");
 
-namespace {
 
 /// \brief  Copied from LLVM.
-static bool eliminateUnreachableBlock(Function &F) {
+static bool eliminateUnreachableBlock_local(Function &F) {
   df_iterator_default_set<BasicBlock*> Reachable;
 
   // Mark all reachable blocks.
@@ -105,7 +93,8 @@ static bool eliminateUnreachableBlock(Function &F) {
       DeadBlocks.push_back(BB);
       while (PHINode *PN = dyn_cast<PHINode>(BB->begin())) {
         PN->replaceAllUsesWith(Constant::getNullValue(PN->getType()));
-        BB->getInstList().pop_front();
+        auto &FirstInsn = BB->front();
+        FirstInsn.eraseFromParent();
       }
       for (succ_iterator SI = succ_begin(BB), E = succ_end(BB); SI != E; ++SI) {
         // Codasip patch, remove predecessor of each PHI if it is present there
@@ -133,74 +122,26 @@ static bool eliminateUnreachableBlock(Function &F) {
   return !DeadBlocks.empty();
 }
 
-class CodasipJumpThreading : public FunctionPass {
-  CodasipJumpThreadingPass Impl;
 
-public:
-  static char ID; // Pass identification
+// char CodasipJumpThreading::ID = 0;
 
-  CodasipJumpThreading(int T = -1) : FunctionPass(ID), Impl() {
-    initializeCodasipJumpThreadingPass(*PassRegistry::getPassRegistry());
-  }
-
-  bool runOnFunction(Function &F) override;
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    //AU.addRequired<LazyValueInfoWrapperPass>();
-    AU.addRequired<LoopInfoWrapperPass>();
-    AU.addRequired<TargetLibraryInfoWrapperPass>();
-  }
-
-private:
-  void createJTGraph(JTGraph &G, Function &F, JTBuilder &Builder);
-  // Merging functions
-  bool mergeThreadableGraphs(JTAnalyzer::ThreadableGraphs &Graphs, const unsigned int Iteration);
-  static bool merge(JTGraph &Dst, JTGraph &Src);
-  static void mergeSameEntryEdgeGraphs(JTAnalyzer::ThreadableGraphs &Graphs);
-  static bool mergeSameEntryEdgeGraphs(JTGraph &Dst, JTGraph &Src);
-  // Attaching functions
-  void attachGraphs(JTGraph &Dst, JTAnalyzer::ThreadableGraphs &Src, bool &Changed);
-  //static bool hasIntersection(ThreadableGraphs &Src);
-  void attachGraph(JTGraph &Dst, JTGraph &Src, bool &Changed);
-  // LLVM final processing functions
-  static void cloneBlocks(JTGraph::JTBlocks &Blocks, JTGraph &G, JTBuilder &Builder);
-  void fixTerminators(JTGraph::JTBlocks &Blocks, Function &F);
-  void fixConditionalBranch(Instruction *Terminator, JTBlock &Block);
-  void fixSwitch(Instruction *Terminator, JTBlock &Block);
-  void placeDuplicatedBlocksIntoFunction(Function &F, JTGraph::JTBlocks &Blocks);
-
-  // Utility functions
-  void createDuplicateMap(ValueToValueMapTy &Duplicate2Original, JTBlock &Duplicate);
-};
-
-} // end anonymous namespace
-
-char CodasipJumpThreading::ID = 0;
-
-INITIALIZE_PASS_BEGIN(CodasipJumpThreading, "codasip-jump-threading",
-                "Codasip Jump Threading", false, false)
-//INITIALIZE_PASS_DEPENDENCY(LazyValueInfoWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
-INITIALIZE_PASS_END(CodasipJumpThreading, "codasip-jump-threading",
-                "Codasip Jump Threading", false, false)
+// INITIALIZE_PASS_BEGIN(CodasipJumpThreading, "codasip-jump-threading",
+//                 "Codasip Jump Threading", false, false)
+// //INITIALIZE_PASS_DEPENDENCY(LazyValueInfoWrapperPass)
+// INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
+// INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
+// INITIALIZE_PASS_END(CodasipJumpThreading, "codasip-jump-threading",
+//                 "Codasip Jump Threading", false, false)
 
 // Public interface to the Jump Threading pass
-FunctionPass *llvm::createCodasipJumpThreadingPass(int Threshold) {
-  return new CodasipJumpThreading(Threshold);
-}
-
-CodasipJumpThreadingPass::CodasipJumpThreadingPass()
-  : TLI(nullptr),
-    LVI(nullptr)
-{}
+// FunctionPass *llvm::createCodasipJumpThreadingPass(int Threshold) {
+//   return new CodasipJumpThreading(Threshold);
+// }
 
 /// runOnFunction - Toplevel algorithm.
-bool CodasipJumpThreading::runOnFunction(Function &F)
+bool CodasipJumpThreading::runPass(Function &F, const LoopInfo &LI, const TargetLibraryInfo &TLI)
 {
   bool Changed = false;
-  if (skipFunction(F))
-    return Changed;
 
   LLVM_DEBUG(dbgs()
     << "Running my pass(" << JTDebug::getPassCount() << ") 'CodasipJumpThreading' on function '"
@@ -220,8 +161,10 @@ bool CodasipJumpThreading::runOnFunction(Function &F)
 
   // Find threadable graphs.
   JTAnalyzer::ThreadableGraphs Graphs;
-  const LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  const TargetLibraryInfo &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
+
+  // use new PM Analysis Method, rather than legacy PM interface
+  // const LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+  // const TargetLibraryInfo &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
   JTAnalyzer::run(Graphs, Changed, G, Builder, LI, TLI);
   unsigned int Iteration = 0;
   while (mergeThreadableGraphs(Graphs, Iteration))
@@ -299,7 +242,7 @@ bool CodasipJumpThreading::runOnFunction(Function &F)
 
   // Cleanup blocks, should run after delete of dead PHIs because it breaks it somehow
   LLVM_DEBUG(dbgs() << "Delete unreachable blocks.\n");
-  Changed |= eliminateUnreachableBlock(F);
+  Changed |= eliminateUnreachableBlock_local(F);
   LLVM_DEBUG(dbgs() << F);
 
   // Remove unreachable PHIs,
@@ -342,7 +285,7 @@ void CodasipJumpThreading::createJTGraph(JTGraph &G, Function &F, JTBuilder &Bui
         JTEdge::CreateUnconditional(*Block, Successor);
       }
     } else if (SwitchInst *Switch = dyn_cast<SwitchInst>(Terminator)) {
-      for (SwitchInst::CaseHandle &Case : Switch->cases()) {
+      for (const SwitchInst::CaseHandle &Case : Switch->cases()) {
         // case branch
         JTBlock &Successor = G.getBlock(*Case.getCaseSuccessor());
         JTEdge::CreateSwitch(*Block, Successor, false, Case.getCaseValue());
@@ -858,4 +801,21 @@ void CodasipJumpThreading::createDuplicateMap(
     assert(DuplicateI);
     Duplicate2Original.insert(std::make_pair(DuplicateI, &I));
   }
+}
+
+
+PreservedAnalyses CodasipJumpThreadingPass::run(Function &F, FunctionAnalysisManager &AM) {
+  auto &LI = AM.getResult<LoopAnalysis>(F);
+  auto &TLI = AM.getResult<TargetLibraryAnalysis>(F);
+  bool Changed = pass.runPass(F, LI, TLI);
+
+  if (!Changed)
+    return PreservedAnalyses::all();
+  
+  // Pass Changed Function
+  // Only Preserve DominatorTreeAnalysis
+  PreservedAnalyses PA;
+  PA.preserve<DominatorTreeAnalysis>();
+ 
+  return PA;
 }

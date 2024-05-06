@@ -12,6 +12,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include "JTBlock.h"
+#include "llvm/ADT/StringExtras.h"
 
 namespace llvm {
 namespace jumpthreading {
@@ -134,7 +135,7 @@ inline const std::string JTThreadableNode::getNodeName() const
 {
   std::string NodeName = getValue().getName().str();
   if (const ConstantInt *C = dyn_cast<ConstantInt>(&getValue()))
-    NodeName = C->getValue().toString(10, true);
+    NodeName = toString(C->getValue(), 10, true);
   return NodeName;
 }
 

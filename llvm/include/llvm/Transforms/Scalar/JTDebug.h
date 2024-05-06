@@ -13,8 +13,6 @@
 
 #include "llvm/IR/JTFwd.h"
 
-#define DEBUG_TYPE "codasip-jump-threading"
-
 namespace llvm {
 namespace jumpthreading {
 

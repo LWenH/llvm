@@ -307,7 +307,6 @@ FunctionPass *createInstSimplifyLegacyPass();
 //
 FunctionPass *createScalarizeMaskedMemIntrinLegacyPass();
 
-FunctionPass *createCodasipJumpThreadingPass(int Threshold = -1);
 } // End llvm namespace
 
 #endif

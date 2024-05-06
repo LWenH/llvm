@@ -8,6 +8,7 @@
 
 #include "llvm/IR/JTGraph.h"
 #include "llvm/Transforms/Scalar/JTAnalyzer.h"
+#include "llvm/ADT/StringExtras.h"
 
 using namespace llvm;
 using namespace jumpthreading;
@@ -185,7 +186,7 @@ void JTGraph::printDot(const std::string &Path) const
   //dbgs() << "printDot start " << Path << "\n";
 
   std::error_code EC;
-  raw_fd_ostream Out(Path, EC, sys::fs::OpenFlags::F_None);
+  raw_fd_ostream Out(Path, EC, sys::fs::OpenFlags::OF_None);
   assert(!EC);
   Out << "digraph G {\n";
 
@@ -209,7 +210,7 @@ void JTGraph::printDot(const std::string &Path) const
               if (ConstantInt *C = dyn_cast<ConstantInt>(V)) {
                 if (!VariablesStr.empty())
                   VariablesStr += "\n";
-                VariablesStr += (std::string)Phi->getName() + " = " + C->getValue().toString(16, true);
+                VariablesStr += (std::string)Phi->getName() + " = " + llvm::toString(C->getValue(), 16, true);
               }
             }
 
@@ -283,7 +284,7 @@ void JTGraph::printEdge(
 const std::string JTGraph::toString(const Value &Condition)
 {
   if (const ConstantInt *V = dyn_cast<ConstantInt>(&Condition)) {
-    return V->getValue().toString(16, true);
+    return llvm::toString(V->getValue(), 16, true);
   } else if (const PHINode *Phi = dyn_cast<PHINode>(&Condition)) {
     return Phi->getName().str();
   } else if (const CmpInst *Compare = dyn_cast<CmpInst>(&Condition)) {
