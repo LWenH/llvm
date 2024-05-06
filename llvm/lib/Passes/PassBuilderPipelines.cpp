@@ -210,6 +210,11 @@ static cl::opt<bool>
                            cl::init(false), cl::Hidden);
 
 static cl::opt<bool>
+UseCodasipJumpThreading("use-codasip-jump-threading",
+  cl::init(false), cl::Hidden,
+  cl::desc("Use Codasip Jump Threading Pass instead of LLVM Jump Threading Pass"));
+
+static cl::opt<bool>
     EnableHotColdSplit("hot-cold-split",
                        cl::desc("Enable hot-cold splitting pass"));
 
@@ -546,7 +551,11 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
   FPM.addPass(SpeculativeExecutionPass(/* OnlyIfDivergentTarget =*/true));
 
   // Optimize based on known information about branches, and cleanup afterward.
-  FPM.addPass(JumpThreadingPass());
+      // Thread jumps.
+  if (UseCodasipJumpThreading && Level == OptimizationLevel::O3 && Level.getSizeLevel() == 0)
+    FPM.addPass(CodasipJumpThreadingPass());
+  else
+    FPM.addPass(JumpThreadingPass());
   FPM.addPass(CorrelatedValuePropagationPass());
 
   FPM.addPass(
@@ -683,8 +692,11 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
   // redo DCE, etc.
   if (EnableDFAJumpThreading && Level.getSizeLevel() == 0)
     FPM.addPass(DFAJumpThreadingPass());
-
-  FPM.addPass(JumpThreadingPass());
+  
+  if (UseCodasipJumpThreading && Level == OptimizationLevel::O3 && Level.getSizeLevel() == 0)
+    FPM.addPass(CodasipJumpThreadingPass());
+  else
+    FPM.addPass(JumpThreadingPass());
   FPM.addPass(CorrelatedValuePropagationPass());
 
   // Finally, do an expensive DCE pass to catch all the dead code exposed by
@@ -1780,8 +1792,11 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
 
   if (EnableConstraintElimination)
     FPM.addPass(ConstraintEliminationPass());
-
-  FPM.addPass(JumpThreadingPass());
+  
+  if (UseCodasipJumpThreading && Level == OptimizationLevel::O3 && Level.getSizeLevel() == 0)
+    FPM.addPass(CodasipJumpThreadingPass());
+  else
+    FPM.addPass(JumpThreadingPass());
 
   // Do a post inline PGO instrumentation and use pass. This is a context
   // sensitive PGO pass.
@@ -1864,7 +1879,10 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
       OpenMPOptCGSCCPass(ThinOrFullLTOPhase::FullLTOPostLink)));
 
   invokePeepholeEPCallbacks(MainFPM, Level);
-  MainFPM.addPass(JumpThreadingPass());
+  if (UseCodasipJumpThreading && Level == OptimizationLevel::O3 && Level.getSizeLevel() == 0)
+    MainFPM.addPass(CodasipJumpThreadingPass());
+  else
+    MainFPM.addPass(JumpThreadingPass());
   MPM.addPass(createModuleToFunctionPassAdaptor(std::move(MainFPM),
                                                 PTO.EagerlyInvalidateAnalyses));
 
