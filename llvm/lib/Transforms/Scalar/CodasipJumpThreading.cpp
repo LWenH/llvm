@@ -813,9 +813,6 @@ PreservedAnalyses CodasipJumpThreadingPass::run(Function &F, FunctionAnalysisMan
     return PreservedAnalyses::all();
   
   // Pass Changed Function
-  // Only Preserve DominatorTreeAnalysis
-  PreservedAnalyses PA;
-  PA.preserve<DominatorTreeAnalysis>();
- 
-  return PA;
+  // Don't Preserve Any Dominator Tree Analyses
+  return PreservedAnalyses::none();
 }
